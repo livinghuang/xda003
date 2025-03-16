@@ -9,7 +9,7 @@
 #define LORA_MOSI 7
 #define LORA_NSS 8
 #define LORA_SCK 10
-#define REGION (LoRaWANBand_t) AS923
+#define REGION (LoRaWANBand_t) AS923_1
 #define SUB_BAND 0
 
 #define USE_AT_COMMAND_SERVICE

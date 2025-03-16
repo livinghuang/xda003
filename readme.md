@@ -85,7 +85,7 @@ The product is a remote sensor equipped with multiple communication functions. I
 - Report system status to LoRaWAN server at configurable intervals (1-60 min).
 - Include battery status, nearby readable beacon (biggest RSSI) information, and sensor status.
 - Data format for uplink
-   - **Data format: Total 40 bytes per packet (report data)**
+   - **Data format: Total 46 bytes per packet (report data)**
      ```c
          struct battery_data // 2 bytes
         {
@@ -365,7 +365,225 @@ ISR(GPIO_INTERRUPT) {
 }
 ```
 
-## **9. Conclusion**
+
+## **9. LoRaWAN Downlink Command List**
+
+## Command 0: Echo Response Test
+**Command ID:** `0x0000`
+
+**Description:** Tests LoRaWAN communication by having the device return the same parameter string sent by the server.
+
+**Payload Format:**
+```cpp
+struct {
+    char echo_string[48]; // Maximum 48 bytes, device will echo the same content
+};
+```
+
+---
+
+## Command 1: Set Report Interval
+**Command ID:** `0x0001`
+
+**Description:** Sets the device status report interval.
+
+**Payload Format:**
+```cpp
+struct {
+    uint8_t interval_time; // 1-60 minutes
+};
+```
+
+---
+
+## Command 2: Bind Hook & Set Alarm Sensitivity
+**Command ID:** `0x0002`
+
+**Description:** Configures the hooks (Hook0 & Hook1) and alarm trigger sensitivity.
+
+**Payload Format:**
+```cpp
+struct hook {
+    uint8_t hook_id[6];       // Hook ID (6 bytes)
+    uint16_t sensitivity;     // Hook sensitivity threshold
+    uint16_t missing_threshold; // Hook missing detection threshold (seconds)
+};
+
+struct {
+    struct hook hook0;
+    struct hook hook1;
+    uint16_t reed_switch_debounce_time; // Global debounce setting for the reed switch
+};
+```
+
+---
+
+## Command 3: Add Dangerous Zone Beacons
+**Command ID:** `0x0003`
+
+**Description:** Adds multiple BLE Beacons to the dangerous zone list with an RSSI trigger threshold.
+
+**Payload Format:**
+```cpp
+struct beacon {
+    uint8_t beacon_id[8]; // BLE beacon UUID
+    int16_t rssi;        // RSSI threshold for triggering
+};
+
+struct {
+    struct beacon beacons[4]; // Up to 4 BLE beacon UUIDs with RSSI thresholds
+};
+```
+
+---
+
+## Command 4: Remove Dangerous Zone Beacons
+**Command ID:** `0x0004`
+
+**Description:** Removes multiple BLE Beacons from the dangerous zone list.
+
+**Payload Format:**
+```cpp
+struct {
+    uint8_t beacon_id[4][8]; // Up to 4 BLE beacon UUIDs (each 8 bytes)
+};
+```
+
+---
+
+## Command 5: Configure Security Mode
+**Command ID:** `0x0005`
+
+**Description:** Configures security mode behavior.
+
+**Payload Format:**
+```cpp
+struct {
+    uint16_t auto_lock_timeout;
+    uint16_t alert_repeat_interval;
+    uint16_t max_alert_duration;
+};
+```
+
+---
+
+## Command 6: Configure Power Management
+**Command ID:** `0x0006`
+
+**Description:** Sets power-saving behavior.
+
+**Payload Format:**
+```cpp
+struct {
+    uint8_t low_power_threshold; // Battery level threshold for low power mode
+    uint16_t sleep_duration; // Sleep duration (seconds)
+    uint16_t ble_scan_duration; // BLE scan duration (seconds)
+};
+```
+
+---
+
+## Command 7: Factory Reset
+**Command ID:** `0x0007`
+
+**Description:** Resets the device to factory default settings.
+
+**Payload Format:**
+```cpp
+struct {
+    // No parameters, executing this command resets the device.
+};
+```
+
+---
+
+## Command 8: Remote Firmware Update Trigger
+**Command ID:** `0x0008`
+
+**Description:** Initiates an over-the-air firmware update.
+
+**Payload Format:**
+```cpp
+struct {
+    uint8_t firmware_version;
+    uint8_t update_trigger;
+    uint8_t fallback_mode;
+};
+```
+
+---
+
+## Command 9: Emergency Alarm Transmission Settings
+**Command ID:** `0x0009`
+
+**Description:** Configures LoRaWAN emergency alarm transmission behavior.
+
+**Payload Format:**
+```cpp
+struct {
+    uint8_t transmission_retries;
+    uint8_t broadcast_range;
+};
+```
+
+---
+
+## Command 10: Force Deep Sleep Mode
+**Command ID:** `0x000A`
+
+**Description:** Forces the device into deep sleep mode, turning off alarms.
+
+**Payload Format:**
+```cpp
+struct {
+    uint32_t deep_sleep_duration; // Sleep duration (seconds), 0 for permanent sleep
+    uint8_t allow_external_wakeup; // 1 = Enable GPIO/button wake-up, 0 = Disable
+    uint8_t allow_timer_wakeup; // 1 = Enable timer wake-up, 0 = Disable
+};
+```
+
+---
+
+## Command 11: Alarm Test Mode
+**Command ID:** `0x000B`
+
+**Description:** Forces the device to turn on/off the alarm for testing.
+
+**Payload Format:**
+```cpp
+struct {
+    uint8_t alarm_state; // 0x00 = Off, 0x01 = On
+    uint16_t alarm_duration; // Duration in seconds, 0 for manual turn-off
+    uint8_t test_mode; // 0x00 = Normal mode, 0x01 = Test mode
+};
+```
+
+---
+
+## Summary Table
+| Command ID | Command Name | Description |
+|------------|--------------------------|------------------------------------------|
+| `0x0000` | Echo Response Test | Device echoes received parameter string |
+| `0x0001` | Set Report Interval | Sets device status report interval (1-60 min) |
+| `0x0002` | Bind Hook & Alarm Sensitivity | Configures Hook0, Hook1, and alarm trigger sensitivity |
+| `0x0003` | Add Dangerous Zone Beacons | Adds BLE Beacons with RSSI trigger threshold |
+| `0x0004` | Remove Dangerous Zone Beacons | Removes BLE Beacons from the dangerous zone list |
+| `0x0005` | Configure Security Mode | Sets security behavior and alarm repeat intervals |
+| `0x0006` | Configure Power Management | Controls sleep mode, low power threshold, and BLE scan settings |
+| `0x0007` | Factory Reset | Resets the device to default settings |
+| `0x0008` | Remote Firmware Update | Triggers OTA firmware updates |
+| `0x0009` | Emergency Alarm Transmission | Configures LoRaWAN emergency alarm retries and broadcast range |
+| `0x000A` | Force Deep Sleep Mode | Turns off alarms and enters deep sleep mode |
+| `0x000B` | Alarm Test Mode | Forces alarm activation/deactivation for testing |
+
+---
+
+This document defines the full set of LoRaWAN downlink commands for configuring and managing the device. Let me know if you need any modifications!
+
+
+
+
+## **10. Conclusion**
 
 This remote sensor system is designed to enhance security by detecting control zone entry, monitoring reed switch activations, and processing alerts from other BLE sensors. With BLE and LoRaWAN communication, it ensures immediate alarm reporting and periodic system updates, making it suitable for various security applications.
 

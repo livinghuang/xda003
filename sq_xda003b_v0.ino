@@ -8,6 +8,7 @@
 #include "led.h"
 #include "battery.h"
 #include "dummy_data.h"
+#include "commands.h"
 
 #define SYSTEM_CYCLE_TIME 60 // unit  : second
 
@@ -60,6 +61,14 @@ struct report_data global_report_data;
 uint32_t time_start = 0;
 void setup()
 {
+  siliqs_esp32_setup();
+
+   while (1)
+  {
+    command_test();
+    delay(1000);
+  }
+
   // fetch_battary(1);
 
   // if (global_sensor_data.battery_voltage < 3.32)
@@ -71,7 +80,6 @@ void setup()
   //     ;
   // }
 
-  siliqs_esp32_setup();
   lorawan.begin(true);
   time_start = millis();
   if (readSystemData(&global_system_data, sizeof(global_system_data)))
