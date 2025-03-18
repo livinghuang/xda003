@@ -5,16 +5,18 @@
 #include <memory>
 #include <cstring>
 #include <algorithm>
+#define COMAND_ID_T uint16_t
+#define SIZE_OF_COMMAND_ID sizeof(COMAND_ID_T) // 2 bytes
 
 // Downlink Packet Structure
 struct downlink_packet
 {
-  uint8_t command_id;
+  COMAND_ID_T command_id;
   uint8_t params[48];
 };
 
 // Command ID Enum
-enum command_id
+enum command_id : COMAND_ID_T
 {
   CMD_ECHO = 0,
   CMD_SET_INTERVAL = 1,
@@ -49,33 +51,27 @@ class EchoCommand : public Command
 {
 private:
   struct cmd_echo echo_data;
+  uint8_t data_length = sizeof(echo_data.echo);
 
 public:
   void parse(const uint8_t *params, size_t length) override
   {
-    // Clear buffer to avoid garbage data
-    memset(echo_data.echo, 0, sizeof(echo_data.echo));
-
-    // Copy only up to the available length
-    size_t copy_len = std::min(static_cast<size_t>(sizeof(echo_data.echo)), length);
-    memcpy(echo_data.echo, params, copy_len);
+    data_length = length - SIZE_OF_COMMAND_ID;
+    memcpy(echo_data.echo, params, length);
   }
 
   void execute() override
   {
-    // Check if all bytes are 0
-    bool is_empty = std::all_of(std::begin(echo_data.echo), std::end(echo_data.echo),
-                                [](uint8_t byte)
-                                { return byte == 0; });
-
-    if (is_empty)
+    if (data_length == 0)
     {
       Serial.println("Echo Data: (Empty)");
     }
     else
     {
       Serial.print("Echo Data: ");
-      print_hex(echo_data.echo, sizeof(echo_data.echo));
+      print_hex(echo_data.echo, data_length);
+      put_data_to_vector(echo_data.echo, data_length);
+      print_top_vector_data();
     }
   }
 };
@@ -84,7 +80,7 @@ public:
 class CommandFactory
 {
 public:
-  static std::unique_ptr<Command> createCommand(uint8_t command_id)
+  static std::unique_ptr<Command> createCommand(COMAND_ID_T command_id)
   {
     switch (command_id)
     {
@@ -101,16 +97,19 @@ class DownlinkCommand
 {
 private:
   std::unique_ptr<Command> command;
-  void print_invalid_command(uint8_t command_id);
+  void print_invalid_command(COMAND_ID_T command_id)
+  {
+    Serial.println("Invalid command ID: " + String(command_id));
+  }
 
 public:
-  DownlinkCommand(const downlink_packet *packet)
+  DownlinkCommand(const downlink_packet *packet, size_t length)
   {
     command = CommandFactory::createCommand(packet->command_id);
 
     if (command)
     {
-      command->parse(packet->params, sizeof(packet->params));
+      command->parse(packet->params, length);
     }
     else
     {

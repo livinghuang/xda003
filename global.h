@@ -61,8 +61,8 @@ extern struct report_data global_report_data;
 extern struct system_data global_system_data;
 extern lorawan_params_settings params;
 
-extern BLEATCommandService BLEatService;
-extern UARTATCommandService UARTatService;
+// extern BLEATCommandService BLEatService;
+// extern UARTATCommandService UARTatService;
 
 bool parseIntervalTime(String param);
 void at_send_response(String response);
@@ -72,3 +72,12 @@ void blink_led(int times);
 void storage(void);
 
 void print_hex(const uint8_t *data, size_t len);
+void print_global_report_data();
+
+void put_data_to_vector(uint8_t *data, size_t len);
+void print_top_vector_data();
+size_t get_data_from_vector(uint8_t *data, size_t len);
+bool is_vector_empty();
+void vector_to_buffer();
+void buffer_to_vector();
+size_t get_vector_size();

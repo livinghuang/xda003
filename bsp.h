@@ -13,14 +13,13 @@
 #define SUB_BAND 0
 
 #define USE_AT_COMMAND_SERVICE
-#define USE_NIMBLE
-#define USE_PTC
-#define USE_MAX31865
+// #define USE_NIMBLE
 #define pMISO 19
 #define pMOSI 18
 #define pSCK 20
 #define pCS 2
 #define CUSTOM_PINS
+#define pLed 0
 #define pVext 9
 #define pADC_BAT 2
 #define USE_BATTERY

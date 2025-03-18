@@ -9,13 +9,14 @@
 #include "battery.h"
 #include "dummy_data.h"
 #include "commands.h"
+#include "ble.h"
 
-#define SYSTEM_CYCLE_TIME 60 // unit  : second
+#define SYSTEM_CYCLE_TIME 10 // unit  : second
 
 // 创建 BLEATCommandService 实例
-BLEATCommandService BLEatService;
+// BLEATCommandService BLEatService;
 // 创建 UARTATCommandService 实例，使用 Serial 作为通信接口
-UARTATCommandService UARTatService;
+// UARTATCommandService UARTatService;
 /**                                                                                     \
  * @brief setup 函数，用于初始化系统                                          \
  *                                                                                      \
@@ -38,7 +39,7 @@ lorawan_params_settings params = {
     .MOSI = LORA_MOSI,                                                                                            // MOSI
     .SCK = LORA_SCK,                                                                                              // SCK
     .NSS = LORA_NSS,                                                                                              // NSS
-    .uplinkIntervalSeconds = 60,                                                                                  // Unit: second, upline interval time
+    .uplinkIntervalSeconds = 10,                                                                                  // Unit: second, upline interval time
     .ADR = true,                                                                                                  // use ADR or not
     .DR = 5,                                                                                                      // Data Rate when start, if ADR is true, this will be tuned automatically
     .DutyCycleFactor = 1250,                                                                                      // Duty Cycle = 1 / (DutyCycleFactor) , if 0, disable. In EU law, Duty Cycle should under 1%
@@ -61,14 +62,9 @@ struct report_data global_report_data;
 uint32_t time_start = 0;
 void setup()
 {
-  siliqs_esp32_setup();
-
-   while (1)
-  {
-    command_test();
-    delay(1000);
-  }
-
+  siliqs_esp32_setup(SQ_INFO);
+  buffer_to_vector();
+  ble_init();
   // fetch_battary(1);
 
   // if (global_sensor_data.battery_voltage < 3.32)
@@ -80,129 +76,160 @@ void setup()
   //     ;
   // }
 
-  lorawan.begin(true);
   time_start = millis();
-  if (readSystemData(&global_system_data, sizeof(global_system_data)))
-  {
-    if (global_system_data.uplinkIntervalSeconds > 86400)
-    {
-      global_system_data.uplinkIntervalSeconds = 180;
-      global_system_data.storage_filename_counter = 0;
-    }
+  // if (readSystemData(&global_system_data, sizeof(global_system_data)))
+  // {
+  //   if (global_system_data.uplinkIntervalSeconds > 86400)
+  //   {
+  //     global_system_data.uplinkIntervalSeconds = 180;
+  //     global_system_data.storage_filename_counter = 0;
+  //   }
 
-    Serial.print("System data loaded successfully.\r\n");
-    params.uplinkIntervalSeconds = global_system_data.uplinkIntervalSeconds;
-  }
-  else
-  {
-    Serial.print("No system data found.\r\n");
-    global_system_data.uplinkIntervalSeconds = params.uplinkIntervalSeconds;
-    global_system_data.storage_filename_counter = 0;
-    storageSystemData(&global_system_data, sizeof(global_system_data));
-  }
+  //   Serial.print("System data loaded successfully.\r\n");
+  //   params.uplinkIntervalSeconds = global_system_data.uplinkIntervalSeconds;
+  // }
+  // else
+  // {
+  //   Serial.print("No system data found.\r\n");
+  //   global_system_data.uplinkIntervalSeconds = params.uplinkIntervalSeconds;
+  //   global_system_data.storage_filename_counter = 0;
+  //   storageSystemData(&global_system_data, sizeof(global_system_data));
+  // }
   Serial.print("Interval time set to " + String(params.uplinkIntervalSeconds) + " s.\r\n");
-  Serial.print("Storage filename counter is " + String(global_system_data.storage_filename_counter) + " \r\n");
+  // Serial.print("Storage filename counter is " + String(global_system_data.storage_filename_counter) + " \r\n");
   Serial.flush();
-  if (bootCount == 1)
-  {
-    Serial.println("AT Command Service is starting...");
-    add_at_commands();
-    BLEatService.startTask();
-    UARTatService.startTask();
-    pinMode(pVext, OUTPUT);
-    digitalWrite(pVext, LOW);
-    delay(1000);
-  }
+
+  // if (bootCount == 1)
+  // {
+  //   Serial.println("AT Command Service is starting...");
+  //   add_at_commands();
+  //   BLEatService.startTask();
+  //   UARTatService.startTask();
+  //   pinMode(pVext, OUTPUT);
+  //   digitalWrite(pVext, LOW);
+  //   delay(1000);
+  //   Serial.println("boot count: " + String(bootCount));
+  //   send_data_to_server();
+  //   // wait for seconds for user enter at command mode
+  //   blink_led(30);
+  //   while (nimbleService.deviceConnected)
+  //   {
+  //     vTaskDelay(100);
+  //   }
+  //   gotoSleep(1000);
+  // }
+  // // 初始化 NimBLE 服务
+  // struct set_scan_params scan_params;
+  // scan_params.scanTime = 0; // Scan time
+  // scan_params.name = "";    // Device name
+  // scan_params.address = ""; // MAC address
+  // scan_params.scanActive = false;
+  // scan_params.scanInterval = 1000; // Scan interval, unit: ms
+  // scan_params.scanWindow = 100;    // Scan window, unit: ms
+  // scan_params.scanMaxResults = 20; // Maximum number of results, 0 means no storage of results
+
+  // nimbleService.init();
+  // nimbleService.startScanDevices(scan_params);
+  // uint32_t time = millis();
+  // while (1) //
+  // {
+  //   if ((millis() - time > 8000))
+  //   {
+  //     time = millis();
+  //     NimBLEScanResults scanResults = pBLEScan->getResults();
+  //     Serial.print("Scan done!\n");
+  //     Serial.print("Found ");
+  //     Serial.print(scanResults.getCount());
+  //     Serial.print(" device(s).\n");
+  //     for (int i = 0; i < scanResults.getCount(); i++)
+  //     {
+  //       NimBLEAdvertisedDevice device = scanResults.getDevice(i);
+  //       Serial.printf("Device %d:\n  Name: %s\n  Address: %s\n  RSSI: %d\n",
+  //                     i + 1, device.getName().empty() ? "Unnamed" : device.getName().c_str(),
+  //                     device.getAddress().toString().c_str(), device.getRSSI());
+  //       // Check for Manufacturer Data (which may contain iBeacon UUID, Major, Minor)
+  //       if (device.haveManufacturerData())
+  //       {
+  //         std::string manufacturerData = device.getManufacturerData();
+  //         Serial.print("  Manufacturer Data: ");
+  //       }
+  //     }
+  //   }
+  // }
+
+  // nimbleService.printDiscoveredDevices();
 }
 
 void loop()
 {
-  Serial.println("boot count: " + String(bootCount));
-  if (bootCount == 1)
+  if ((bootCount % 3) == 0)
   {
-    send_data_to_server();
-    // wait for seconds for user enter at command mode
-    blink_led(60);
-    while (nimbleService.deviceConnected)
-    {
-      vTaskDelay(100);
-    }
+    // queue the data to vector
+    get_dummy_report_data(&global_report_data);
+    print_global_report_data();
+    put_data_to_vector((uint8_t *)&global_report_data, sizeof(global_report_data));
+  }
+  // send data to server
+  send_data_to_server();
+
+  vector_to_buffer();
+
+  while (is_ble_working())
+  {
+    vTaskDelay(100);
+  }
+
+  Serial.println("close BLE");
+  ble_close();
+
+  uint32_t sleep_time = 1000;
+  uint32_t used_time = millis() - time_start;
+  Serial.println("used time: " + String(used_time) + " ms");
+  if (used_time > SYSTEM_CYCLE_TIME * 1000)
+  {
+    Serial.println("Warning: used time is more than " + String(SYSTEM_CYCLE_TIME) + " second");
   }
   else
   {
-    Serial.println("next uplink count down: " + String((params.uplinkIntervalSeconds / SYSTEM_CYCLE_TIME) - bootCount % (params.uplinkIntervalSeconds / SYSTEM_CYCLE_TIME)));
-    if ((bootCount % (params.uplinkIntervalSeconds / SYSTEM_CYCLE_TIME)) == 0)
-    {
-      // delay(random(0, 1000));
-      if (1) // (is_temperature_valid())
-      {
-        send_data_to_server();
-      }
-    }
+    sleep_time = (SYSTEM_CYCLE_TIME * 1000 - used_time);
   }
-  uint32_t used_time = millis() - time_start;
-  Serial.println("used time: " + String(used_time) + " ms");
-
-  uint32_t sleep_time = (SYSTEM_CYCLE_TIME * 1000 - used_time);
   Serial.println("sleep time: " + String(sleep_time) + " millisecond");
+  Serial.flush();
   // go to sleep for a while
   gotoSleep(sleep_time);
 }
 
 void send_data_to_server()
 {
-  lorawan.begin();
-  uint8_t updata[sizeof(global_report_data)];
-  static uint8_t fport = 10;
+  if (is_vector_empty())
+  {
+    return; // No data to send
+  }
+  lorawan.begin(true);
+
+  static constexpr uint8_t fport = 10;
   uint8_t downbuffer[255];
   size_t downlen = 0;
-  bool isConfirmed = true;
+  constexpr bool isConfirmed = true;
+
   lorawan.set_battery_level(global_report_data.battery_status.battery_level);
 
-  get_dummy_report_data(&global_report_data);
+  // Extract data from queue and send
+  uint8_t updata[255];
+  size_t data_size = get_data_from_vector(updata, sizeof(updata));
 
-  Serial.println("=====================================");
-  Serial.println("Battery level: " + String(global_report_data.battery_status.battery_level));
-  Serial.println("Battery power mode: " + String(global_report_data.battery_status.power_mode) + "=> 0: normal , 1: power saving , 2: charging");
-  Serial.println("=====================================");
-  Serial.print("Beacon ID: ");
-  print_hex(global_report_data.biggest_rssi_readable_in_past_one_minutes_beacon_data.uuid, sizeof(global_report_data.biggest_rssi_readable_in_past_one_minutes_beacon_data.uuid));
-  Serial.println("Beacon RSSI: " + String(global_report_data.biggest_rssi_readable_in_past_one_minutes_beacon_data.rssi));
-  Serial.println("Beacon Major: " + String(global_report_data.biggest_rssi_readable_in_past_one_minutes_beacon_data.major));
-  Serial.println("Beacon Minor: " + String(global_report_data.biggest_rssi_readable_in_past_one_minutes_beacon_data.minor));
-  Serial.println("=====================================");
-  Serial.println("Hook 0 ID: ");
-  print_hex(global_report_data.sensor_status.hooks[0].hook_id, sizeof(global_report_data.sensor_status.hooks[0].hook_id));
-  Serial.println("Hook 0 Mode: " + String(global_report_data.sensor_status.hooks[0].mode) + "=>  0: normal 1: un-know");
-  Serial.println("Hook 0 Status: " + String(global_report_data.sensor_status.hooks[0].status) + "=>  0: normal 1: alarm");
-  Serial.println("Hook 0 Battery Level: " + String(global_report_data.sensor_status.hooks[0].hook_battery.battery_level));
-  Serial.println("-------------------------------------");
-  Serial.println("Hook 1 ID: ");
-  print_hex(global_report_data.sensor_status.hooks[1].hook_id, sizeof(global_report_data.sensor_status.hooks[1].hook_id));
-  Serial.println("Hook 1 Mode: " + String(global_report_data.sensor_status.hooks[1].mode) + "=>  0: normal 1: un-know");
-  Serial.println("Hook 1 Status: " + String(global_report_data.sensor_status.hooks[1].status) + "=>  0: normal 1: alarm");
-  Serial.println("Hook 1 Battery Level: " + String(global_report_data.sensor_status.hooks[1].hook_battery.battery_level));
-  Serial.println("=====================================");
-  Serial.println("Reed Switch Mode: " + String(global_report_data.sensor_status.reed_switch.mode) + "=>  0: normal 1: un-know");
-  Serial.println("Reed Switch Status: " + String(global_report_data.sensor_status.reed_switch.status) + "=>  0: normal 1: alarm");
-  Serial.println("=====================================");
-  memcpy(updata, &global_report_data, sizeof(global_report_data));
-
-  lorawan.send_and_receive(updata, sizeof(updata), fport, downbuffer, &downlen, isConfirmed);
-  lorawan.sleep(LORAWAN_SLEEP_IN_RADIO_OFF); // use radio off, spi ended
+  lorawan.send_and_receive(updata, data_size, fport, downbuffer, &downlen, isConfirmed);
+  lorawan.sleep(LORAWAN_SLEEP_IN_RADIO_OFF); // Put LoRa module into sleep mode
 
   if (downlen > 0)
   {
     Serial.print("Downlink: ");
-    for (int i = 0; i < downlen; i++)
-    {
-      if (downbuffer[i] < 0x10)
-      {
-        Serial.print("0");
-      }
-      Serial.print(downbuffer[i], HEX);
-      Serial.print(" ");
-    }
-    Serial.println();
+    print_hex(downbuffer, downlen);
+
+    downlink_packet packet;
+    memcpy(&packet, downbuffer, std::min(downlen, sizeof(packet)));
+
+    DownlinkCommand cmd(&packet, std::min(downlen, sizeof(packet)));
+    cmd.execute();
   }
 }
